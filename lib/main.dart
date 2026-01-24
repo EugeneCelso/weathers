@@ -21,7 +21,7 @@ class weatherApp extends StatefulWidget {
   State<weatherApp> createState() => _weatherAppState();
 }
 
-class _weatherAppState extends State<weatherApp> {
+class _weatherAppState extends State<weatherApp> with TickerProviderStateMixin {
   String currentLocation = "Arayat";
   Color selectedColor = CupertinoColors.systemYellow;
   int currentTab = 0;
@@ -63,6 +63,28 @@ class _weatherAppState extends State<weatherApp> {
         return CupertinoIcons.cloud_fog_fill;
       default:
         return CupertinoIcons.sun_max;
+    }
+  }
+
+  Widget getAnimatedWeatherIcon(String condition, Color color, double size) {
+    switch (condition.toLowerCase()) {
+      case 'clear':
+        return _SunAnimation(color: color, size: size);
+      case 'clouds':
+        return _CloudAnimation(color: color, size: size);
+      case 'rain':
+      case 'drizzle':
+        return _RainAnimation(color: color, size: size);
+      case 'thunderstorm':
+        return _ThunderstormAnimation(color: color, size: size);
+      case 'snow':
+        return _SnowAnimation(color: color, size: size);
+      case 'mist':
+      case 'fog':
+      case 'haze':
+        return _FogAnimation(color: color, size: size);
+      default:
+        return _SunAnimation(color: color, size: size);
     }
   }
 
@@ -128,7 +150,7 @@ class _weatherAppState extends State<weatherApp> {
       tabBar: CupertinoTabBar(
         backgroundColor: CupertinoColors.transparent,
         activeColor: selectedColor,
-        inactiveColor: Color(0xFFFFFFFF), // Changed to bright white
+        inactiveColor: Color(0xFFFFFFFF),
         iconSize: isWideScreen ? 30 : 28,
         border: Border(
           top: BorderSide(
@@ -225,10 +247,11 @@ class _weatherAppState extends State<weatherApp> {
                               ),
                             ),
                             SizedBox(height: isWideScreen ? 80 : 60),
-                            Icon(
-                              getWeatherIcon(weatherCondition),
-                              color: selectedColor,
-                              size: isWideScreen ? 200 : 160,
+                            // Animated Weather Icon
+                            getAnimatedWeatherIcon(
+                                weatherCondition,
+                                selectedColor,
+                                isWideScreen ? 200 : 160
                             ),
                             SizedBox(height: isWideScreen ? 40 : 30),
                             Text(
@@ -551,59 +574,14 @@ class _weatherAppState extends State<weatherApp> {
   void _showColorPicker(BuildContext context, bool isWideScreen) {
     showCupertinoModalPopup(
       context: context,
-      builder: (BuildContext context) => Container(
-        height: isWideScreen ? 400 : 350,
-        decoration: BoxDecoration(
-          color: CupertinoColors.systemBackground.resolveFrom(context),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: Column(
-            children: [
-              Container(
-                margin: EdgeInsets.only(top: 8),
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: CupertinoColors.systemGrey3,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              Container(
-                padding: EdgeInsets.all(20),
-                child: Text(
-                  "Choose Icon Color",
-                  style: TextStyle(
-                    fontSize: isWideScreen ? 22 : 20,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              Expanded(
-                child: GridView.count(
-                  crossAxisCount: 4,
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isWideScreen ? 40 : 24,
-                    vertical: 16,
-                  ),
-                  mainAxisSpacing: isWideScreen ? 24 : 20,
-                  crossAxisSpacing: isWideScreen ? 24 : 20,
-                  children: [
-                    _buildColorOption(CupertinoColors.systemYellow, isWideScreen),
-                    _buildColorOption(CupertinoColors.systemOrange, isWideScreen),
-                    _buildColorOption(CupertinoColors.systemRed, isWideScreen),
-                    _buildColorOption(CupertinoColors.systemPink, isWideScreen),
-                    _buildColorOption(CupertinoColors.systemPurple, isWideScreen),
-                    _buildColorOption(CupertinoColors.systemBlue, isWideScreen),
-                    _buildColorOption(CupertinoColors.systemTeal, isWideScreen),
-                    _buildColorOption(CupertinoColors.systemGreen, isWideScreen),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
+      builder: (BuildContext context) => _DraggableColorPicker(
+        selectedColor: selectedColor,
+        isWideScreen: isWideScreen,
+        onColorSelected: (color) {
+          setState(() {
+            selectedColor = color;
+          });
+        },
       ),
     );
   }
@@ -642,7 +620,6 @@ class _weatherAppState extends State<weatherApp> {
                   });
                   getWeatherData();
                   Navigator.pop(context);
-                  // Switch to home tab
                   _tabController?.index = 0;
                 }
               },
@@ -652,17 +629,134 @@ class _weatherAppState extends State<weatherApp> {
       },
     );
   }
+}
 
-  Widget _buildColorOption(Color color, bool isWideScreen) {
-    bool isSelected = selectedColor == color;
+// Draggable Color Picker Widget
+class _DraggableColorPicker extends StatefulWidget {
+  final Color selectedColor;
+  final bool isWideScreen;
+  final Function(Color) onColorSelected;
+
+  const _DraggableColorPicker({
+    required this.selectedColor,
+    required this.isWideScreen,
+    required this.onColorSelected,
+  });
+
+  @override
+  State<_DraggableColorPicker> createState() => _DraggableColorPickerState();
+}
+
+class _DraggableColorPickerState extends State<_DraggableColorPicker> {
+  double dragOffset = 0;
+
+  final List<Color> colors = [
+    CupertinoColors.systemYellow,
+    CupertinoColors.systemOrange,
+    CupertinoColors.systemRed,
+    CupertinoColors.systemPink,
+    CupertinoColors.systemPurple,
+    CupertinoColors.systemBlue,
+    CupertinoColors.systemTeal,
+    CupertinoColors.systemGreen,
+    CupertinoColors.systemIndigo,
+    CupertinoColors.systemCyan,
+    CupertinoColors.systemMint,
+    Color(0xFFFF1493), // Deep Pink
+    Color(0xFF9370DB), // Medium Purple
+    Color(0xFF00CED1), // Dark Turquoise
+    Color(0xFFFF6347), // Tomato
+    Color(0xFF32CD32), // Lime Green
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final maxHeight = screenHeight * 0.6;
+
+    return GestureDetector(
+      onVerticalDragUpdate: (details) {
+        setState(() {
+          dragOffset += details.delta.dy;
+          if (dragOffset > 0) {
+            // Allow dragging down
+          } else {
+            dragOffset = 0;
+          }
+        });
+      },
+      onVerticalDragEnd: (details) {
+        if (dragOffset > 100 || details.velocity.pixelsPerSecond.dy > 500) {
+          Navigator.pop(context);
+        } else {
+          setState(() {
+            dragOffset = 0;
+          });
+        }
+      },
+      child: AnimatedContainer(
+        duration: Duration(milliseconds: 200),
+        transform: Matrix4.translationValues(0, dragOffset, 0),
+        height: maxHeight,
+        decoration: BoxDecoration(
+          color: CupertinoColors.systemBackground.resolveFrom(context),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            children: [
+              // Drag handle
+              Container(
+                margin: EdgeInsets.only(top: 8),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: CupertinoColors.systemGrey3,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              // Title
+              Container(
+                padding: EdgeInsets.all(20),
+                child: Text(
+                  "Choose Icon Color",
+                  style: TextStyle(
+                    fontSize: widget.isWideScreen ? 22 : 20,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              // Color Grid
+              Expanded(
+                child: GridView.count(
+                  crossAxisCount: 4,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: widget.isWideScreen ? 40 : 24,
+                    vertical: 16,
+                  ),
+                  mainAxisSpacing: widget.isWideScreen ? 24 : 20,
+                  crossAxisSpacing: widget.isWideScreen ? 24 : 20,
+                  children: colors.map((color) => _buildColorOption(color)).toList(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildColorOption(Color color) {
+    bool isSelected = widget.selectedColor == color;
     return GestureDetector(
       onTap: () {
-        setState(() {
-          selectedColor = color;
-        });
+        widget.onColorSelected(color);
         Navigator.pop(context);
       },
-      child: Container(
+      child: AnimatedContainer(
+        duration: Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
         decoration: BoxDecoration(
           color: color,
           shape: BoxShape.circle,
@@ -685,11 +779,444 @@ class _weatherAppState extends State<weatherApp> {
           child: Icon(
             CupertinoIcons.checkmark_alt,
             color: CupertinoColors.white,
-            size: isWideScreen ? 36 : 32,
+            size: widget.isWideScreen ? 36 : 32,
           ),
         )
             : null,
       ),
+    );
+  }
+}
+
+// Animated Weather Icons
+class _SunAnimation extends StatefulWidget {
+  final Color color;
+  final double size;
+
+  const _SunAnimation({required this.color, required this.size});
+
+  @override
+  State<_SunAnimation> createState() => _SunAnimationState();
+}
+
+class _SunAnimationState extends State<_SunAnimation> with TickerProviderStateMixin {
+  late AnimationController _pulseController;
+  late AnimationController _glowController;
+  late Animation<double> _pulseAnimation;
+  late Animation<double> _glowAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      duration: Duration(seconds: 2),
+      vsync: this,
+    )..repeat(reverse: true);
+
+    _glowController = AnimationController(
+      duration: Duration(milliseconds: 1500),
+      vsync: this,
+    )..repeat(reverse: true);
+
+    _pulseAnimation = Tween<double>(begin: 0.95, end: 1.08).animate(
+        CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut)
+    );
+
+    _glowAnimation = Tween<double>(begin: 0.3, end: 0.7).animate(
+        CurvedAnimation(parent: _glowController, curve: Curves.easeInOut)
+    );
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    _glowController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: Listenable.merge([_pulseController, _glowController]),
+      builder: (context, child) {
+        return Container(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: widget.color.withOpacity(_glowAnimation.value),
+                blurRadius: 40,
+                spreadRadius: 15,
+              ),
+            ],
+          ),
+          child: Transform.scale(
+            scale: _pulseAnimation.value,
+            child: Icon(
+              CupertinoIcons.sun_max_fill,
+              color: widget.color,
+              size: widget.size,
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _CloudAnimation extends StatefulWidget {
+  final Color color;
+  final double size;
+
+  const _CloudAnimation({required this.color, required this.size});
+
+  @override
+  State<_CloudAnimation> createState() => _CloudAnimationState();
+}
+
+class _CloudAnimationState extends State<_CloudAnimation> with TickerProviderStateMixin {
+  late AnimationController _floatController;
+  late AnimationController _scaleController;
+  late Animation<double> _floatAnimation;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _floatController = AnimationController(
+      duration: Duration(seconds: 4),
+      vsync: this,
+    )..repeat(reverse: true);
+
+    _scaleController = AnimationController(
+      duration: Duration(seconds: 3),
+      vsync: this,
+    )..repeat(reverse: true);
+
+    _floatAnimation = Tween<double>(begin: -12, end: 12).animate(
+        CurvedAnimation(parent: _floatController, curve: Curves.easeInOut)
+    );
+
+    _scaleAnimation = Tween<double>(begin: 0.92, end: 1.05).animate(
+        CurvedAnimation(parent: _scaleController, curve: Curves.easeInOut)
+    );
+  }
+
+  @override
+  void dispose() {
+    _floatController.dispose();
+    _scaleController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: Listenable.merge([_floatController, _scaleController]),
+      builder: (context, child) {
+        return Transform.translate(
+          offset: Offset(_floatAnimation.value, -_floatAnimation.value.abs() * 0.3),
+          child: Transform.scale(
+            scale: _scaleAnimation.value,
+            child: Opacity(
+              opacity: 0.85 + (_scaleAnimation.value - 0.92) * 0.5,
+              child: Icon(
+                CupertinoIcons.cloud_fill,
+                color: widget.color,
+                size: widget.size,
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _RainAnimation extends StatefulWidget {
+  final Color color;
+  final double size;
+
+  const _RainAnimation({required this.color, required this.size});
+
+  @override
+  State<_RainAnimation> createState() => _RainAnimationState();
+}
+
+class _RainAnimationState extends State<_RainAnimation> with TickerProviderStateMixin {
+  late AnimationController _bounceController;
+  late AnimationController _shakeController;
+  late Animation<double> _bounceAnimation;
+  late Animation<double> _shakeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _bounceController = AnimationController(
+      duration: Duration(milliseconds: 600),
+      vsync: this,
+    )..repeat(reverse: true);
+
+    _shakeController = AnimationController(
+      duration: Duration(milliseconds: 400),
+      vsync: this,
+    )..repeat(reverse: true);
+
+    _bounceAnimation = Tween<double>(begin: -8, end: 12).animate(
+        CurvedAnimation(parent: _bounceController, curve: Curves.bounceOut)
+    );
+
+    _shakeAnimation = Tween<double>(begin: -0.03, end: 0.03).animate(
+        CurvedAnimation(parent: _shakeController, curve: Curves.easeInOut)
+    );
+  }
+
+  @override
+  void dispose() {
+    _bounceController.dispose();
+    _shakeController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: Listenable.merge([_bounceController, _shakeController]),
+      builder: (context, child) {
+        return Transform.translate(
+          offset: Offset(0, _bounceAnimation.value),
+          child: Transform.rotate(
+            angle: _shakeAnimation.value,
+            child: Icon(
+              CupertinoIcons.cloud_rain_fill,
+              color: widget.color,
+              size: widget.size,
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _ThunderstormAnimation extends StatefulWidget {
+  final Color color;
+  final double size;
+
+  const _ThunderstormAnimation({required this.color, required this.size});
+
+  @override
+  State<_ThunderstormAnimation> createState() => _ThunderstormAnimationState();
+}
+
+class _ThunderstormAnimationState extends State<_ThunderstormAnimation> with TickerProviderStateMixin {
+  late AnimationController _flashController;
+  late AnimationController _shakeController;
+  late Animation<double> _flashAnimation;
+  late Animation<double> _shakeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _flashController = AnimationController(
+      duration: Duration(milliseconds: 200),
+      vsync: this,
+    )..repeat(reverse: true);
+
+    _shakeController = AnimationController(
+      duration: Duration(milliseconds: 100),
+      vsync: this,
+    )..repeat(reverse: true);
+
+    _flashAnimation = Tween<double>(begin: 0.7, end: 1.0).animate(
+        CurvedAnimation(parent: _flashController, curve: Curves.easeInOut)
+    );
+
+    _shakeAnimation = Tween<double>(begin: -3, end: 3).animate(
+        CurvedAnimation(parent: _shakeController, curve: Curves.elasticIn)
+    );
+  }
+
+  @override
+  void dispose() {
+    _flashController.dispose();
+    _shakeController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: Listenable.merge([_flashController, _shakeController]),
+      builder: (context, child) {
+        return Transform.translate(
+          offset: Offset(_shakeAnimation.value, 0),
+          child: Container(
+            decoration: BoxDecoration(
+              boxShadow: [
+                BoxShadow(
+                  color: widget.color.withOpacity(_flashAnimation.value * 0.6),
+                  blurRadius: 30,
+                  spreadRadius: 10,
+                ),
+              ],
+            ),
+            child: Opacity(
+              opacity: _flashAnimation.value,
+              child: Icon(
+                CupertinoIcons.cloud_bolt_rain_fill,
+                color: widget.color,
+                size: widget.size,
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _SnowAnimation extends StatefulWidget {
+  final Color color;
+  final double size;
+
+  const _SnowAnimation({required this.color, required this.size});
+
+  @override
+  State<_SnowAnimation> createState() => _SnowAnimationState();
+}
+
+class _SnowAnimationState extends State<_SnowAnimation> with TickerProviderStateMixin {
+  late AnimationController _fallController;
+  late AnimationController _swayController;
+  late AnimationController _rotateController;
+  late Animation<double> _fallAnimation;
+  late Animation<double> _swayAnimation;
+  late Animation<double> _rotateAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _fallController = AnimationController(
+      duration: Duration(seconds: 3),
+      vsync: this,
+    )..repeat(reverse: true);
+
+    _swayController = AnimationController(
+      duration: Duration(seconds: 2),
+      vsync: this,
+    )..repeat(reverse: true);
+
+    _rotateController = AnimationController(
+      duration: Duration(seconds: 5),
+      vsync: this,
+    )..repeat();
+
+    _fallAnimation = Tween<double>(begin: -10, end: 18).animate(
+        CurvedAnimation(parent: _fallController, curve: Curves.easeInOut)
+    );
+
+    _swayAnimation = Tween<double>(begin: -10, end: 10).animate(
+        CurvedAnimation(parent: _swayController, curve: Curves.easeInOut)
+    );
+
+    _rotateAnimation = Tween<double>(begin: 0, end: 2 * 3.14159).animate(_rotateController);
+  }
+
+  @override
+  void dispose() {
+    _fallController.dispose();
+    _swayController.dispose();
+    _rotateController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: Listenable.merge([_fallController, _swayController, _rotateController]),
+      builder: (context, child) {
+        return Transform.translate(
+          offset: Offset(_swayAnimation.value, _fallAnimation.value),
+          child: Transform.rotate(
+            angle: _rotateAnimation.value,
+            child: Icon(
+              CupertinoIcons.snow,
+              color: widget.color,
+              size: widget.size,
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _FogAnimation extends StatefulWidget {
+  final Color color;
+  final double size;
+
+  const _FogAnimation({required this.color, required this.size});
+
+  @override
+  State<_FogAnimation> createState() => _FogAnimationState();
+}
+
+class _FogAnimationState extends State<_FogAnimation> with TickerProviderStateMixin {
+  late AnimationController _driftController;
+  late AnimationController _fadeController;
+  late Animation<double> _driftAnimation;
+  late Animation<double> _fadeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _driftController = AnimationController(
+      duration: Duration(seconds: 5),
+      vsync: this,
+    )..repeat(reverse: true);
+
+    _fadeController = AnimationController(
+      duration: Duration(seconds: 3),
+      vsync: this,
+    )..repeat(reverse: true);
+
+    _driftAnimation = Tween<double>(begin: -15, end: 15).animate(
+        CurvedAnimation(parent: _driftController, curve: Curves.easeInOut)
+    );
+
+    _fadeAnimation = Tween<double>(begin: 0.4, end: 0.85).animate(
+        CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut)
+    );
+  }
+
+  @override
+  void dispose() {
+    _driftController.dispose();
+    _fadeController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: Listenable.merge([_driftController, _fadeController]),
+      builder: (context, child) {
+        return Transform.translate(
+          offset: Offset(_driftAnimation.value, 0),
+          child: Transform.scale(
+            scale: 0.95 + (_fadeAnimation.value - 0.4) * 0.2,
+            child: Opacity(
+              opacity: _fadeAnimation.value,
+              child: Icon(
+                CupertinoIcons.cloud_fog_fill,
+                color: widget.color,
+                size: widget.size,
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
