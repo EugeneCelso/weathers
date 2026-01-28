@@ -1,6 +1,6 @@
 import 'package:flutter/cupertino.dart';
 
-String api = "74c2309645b96488e4ebd105e105c256";
+String api = "e5e52b7edcef13cff7bee041c28e9e76";
 
 String city = "";
 String weatherCondition = "";
