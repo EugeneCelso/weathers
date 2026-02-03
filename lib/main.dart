@@ -26,6 +26,9 @@ class _weatherAppState extends State<weatherApp> with TickerProviderStateMixin {
   Color selectedColor = CupertinoColors.systemYellow;
   int currentTab = 0;
   CupertinoTabController? _tabController;
+  bool isMetric = true; // true = Metric (Celsius + km/h), false = Imperial (Fahrenheit + mph)
+  String windSpeed = "0.0";
+  String windSpeedUnit = "m/s";
 
   @override
   void initState() {
@@ -120,9 +123,37 @@ class _weatherAppState extends State<weatherApp> with TickerProviderStateMixin {
       setState(() {
         city = weatherData["city"]["name"];
         weatherCondition = weatherData["list"][0]["weather"][0]["main"];
-        temperature = (weatherData["list"][0]["main"]["temp"] - 273.15).toStringAsFixed(0);
-        feels_like = (weatherData["list"][0]["main"]["feels_like"] - 273.15).toStringAsFixed(0);
+
+        double tempKelvin = weatherData["list"][0]["main"]["temp"];
+        double feelsLikeKelvin = weatherData["list"][0]["main"]["feels_like"];
+
+        if (isMetric) {
+          temperature = (tempKelvin - 273.15).toStringAsFixed(0);
+          feels_like = (feelsLikeKelvin - 273.15).toStringAsFixed(0);
+        } else {
+          // Convert to Fahrenheit: (K - 273.15) × 9/5 + 32
+          temperature = ((tempKelvin - 273.15) * 9/5 + 32).toStringAsFixed(0);
+          feels_like = ((feelsLikeKelvin - 273.15) * 9/5 + 32).toStringAsFixed(0);
+        }
+
         humidity = (weatherData["list"][0]["main"]["humidity"]).toString();
+
+        // Get wind speed (m/s by default from API)
+        double windSpeedMs = weatherData["list"][0]["wind"]["speed"].toDouble();
+
+        if (isMetric) {
+          // Metric: convert to km/h
+          // 1 m/s = 3.6 km/h
+          double windSpeedKmh = windSpeedMs * 3.6;
+          windSpeed = windSpeedKmh.toStringAsFixed(1);
+          windSpeedUnit = "km/h";
+        } else {
+          // Imperial: convert to mph (miles per hour)
+          // 1 m/s = 2.237 mph
+          double windSpeedMph = windSpeedMs * 2.237;
+          windSpeed = windSpeedMph.toStringAsFixed(1);
+          windSpeedUnit = "mph";
+        }
       });
       print(weatherData["list"][0]["main"]["temp"] - 273.15);
     } else if (weatherData["cod"] == "404") {
@@ -387,6 +418,59 @@ class _weatherAppState extends State<weatherApp> with TickerProviderStateMixin {
                                 ),
                               ],
                             ),
+                            SizedBox(height: 16),
+                            Container(
+                              padding: EdgeInsets.all(isWideScreen ? 24 : 20),
+                              decoration: BoxDecoration(
+                                color: CupertinoColors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(24),
+                                border: Border.all(
+                                  color: CupertinoColors.white.withOpacity(0.4),
+                                  width: 1.5,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: CupertinoColors.white.withOpacity(0.25),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      CupertinoIcons.wind,
+                                      color: CupertinoColors.white,
+                                      size: isWideScreen ? 28 : 24,
+                                    ),
+                                  ),
+                                  SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          "Wind Speed",
+                                          style: TextStyle(
+                                            fontSize: isWideScreen ? 15 : 13,
+                                            color: CupertinoColors.white.withOpacity(0.9),
+                                            fontWeight: FontWeight.w400,
+                                          ),
+                                        ),
+                                        SizedBox(height: 4),
+                                        Text(
+                                          "$windSpeed $windSpeedUnit",
+                                          style: TextStyle(
+                                            fontSize: isWideScreen ? 32 : 28,
+                                            fontWeight: FontWeight.w300,
+                                            color: CupertinoColors.white,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                             SizedBox(height: isWideScreen ? 60 : 40),
                           ],
                         ),
@@ -446,51 +530,85 @@ class _weatherAppState extends State<weatherApp> with TickerProviderStateMixin {
                           child: Container(
                             decoration: BoxDecoration(
                               color: CupertinoColors.systemGrey6.darkColor,
-                              borderRadius: BorderRadius.circular(16),
+                              borderRadius: BorderRadius.circular(12),
                             ),
                             child: Column(
                               children: [
                                 _buildSettingsTile(
                                   icon: CupertinoIcons.paintbrush_fill,
-                                  iconColor: LinearGradient(
-                                    colors: [CupertinoColors.systemYellow, CupertinoColors.systemOrange],
-                                  ),
+                                  iconColor: Color(0xFFFF9500),
                                   title: "Icon Color",
-                                  subtitle: "Change weather icon color",
-                                  trailing: Container(
-                                    width: isWideScreen ? 36 : 32,
-                                    height: isWideScreen ? 36 : 32,
-                                    decoration: BoxDecoration(
-                                      color: selectedColor,
-                                      shape: BoxShape.circle,
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: selectedColor.withOpacity(0.4),
-                                          blurRadius: 8,
-                                          spreadRadius: 2,
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        width: 20,
+                                        height: 20,
+                                        decoration: BoxDecoration(
+                                          color: selectedColor,
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: CupertinoColors.systemGrey3,
+                                            width: 1,
+                                          ),
                                         ),
-                                      ],
-                                    ),
+                                      ),
+                                      SizedBox(width: 6),
+                                      Icon(
+                                        CupertinoIcons.chevron_forward,
+                                        color: CupertinoColors.systemGrey3,
+                                        size: 20,
+                                      ),
+                                    ],
                                   ),
                                   onTap: () => _showColorPicker(context, isWideScreen),
                                   isWideScreen: isWideScreen,
                                 ),
                                 Container(
-                                  height: 1,
-                                  margin: EdgeInsets.only(left: isWideScreen ? 76 : 68),
+                                  height: 0.5,
+                                  margin: EdgeInsets.only(left: 53),
+                                  color: CupertinoColors.systemGrey4.darkColor,
+                                ),
+                                _buildSettingsTileWithSwitch(
+                                  icon: CupertinoIcons.globe,
+                                  iconColor: Color(0xFF007AFF),
+                                  title: "Metrics",
+                                  value: isMetric,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      isMetric = value;
+                                    });
+                                    getWeatherData();
+                                  },
+                                  isWideScreen: isWideScreen,
+                                ),
+                                Container(
+                                  height: 0.5,
+                                  margin: EdgeInsets.only(left: 53),
                                   color: CupertinoColors.systemGrey4.darkColor,
                                 ),
                                 _buildSettingsTile(
                                   icon: CupertinoIcons.location_fill,
-                                  iconColor: LinearGradient(
-                                    colors: [CupertinoColors.systemBlue, CupertinoColors.systemIndigo],
-                                  ),
+                                  iconColor: Color(0xFF5856D6),
                                   title: "Location",
-                                  subtitle: currentLocation,
-                                  trailing: Icon(
-                                    CupertinoIcons.chevron_forward,
-                                    color: CupertinoColors.systemGrey2,
-                                    size: isWideScreen ? 22 : 20,
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        currentLocation,
+                                        style: TextStyle(
+                                          fontSize: 17,
+                                          color: CupertinoColors.systemGrey,
+                                          letterSpacing: -0.4,
+                                        ),
+                                      ),
+                                      SizedBox(width: 6),
+                                      Icon(
+                                        CupertinoIcons.chevron_forward,
+                                        color: CupertinoColors.systemGrey3,
+                                        size: 20,
+                                      ),
+                                    ],
                                   ),
                                   onTap: () => _showLocationDialog(context),
                                   isWideScreen: isWideScreen,
@@ -513,9 +631,8 @@ class _weatherAppState extends State<weatherApp> with TickerProviderStateMixin {
 
   Widget _buildSettingsTile({
     required IconData icon,
-    required LinearGradient iconColor,
+    required Color iconColor,
     required String title,
-    required String subtitle,
     required Widget trailing,
     required VoidCallback onTap,
     required bool isWideScreen,
@@ -524,49 +641,88 @@ class _weatherAppState extends State<weatherApp> with TickerProviderStateMixin {
       padding: EdgeInsets.zero,
       onPressed: onTap,
       child: Padding(
-        padding: EdgeInsets.all(isWideScreen ? 20 : 16),
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 11),
         child: Row(
           children: [
             Container(
-              width: isWideScreen ? 48 : 44,
-              height: isWideScreen ? 48 : 44,
+              width: 29,
+              height: 29,
               decoration: BoxDecoration(
-                gradient: iconColor,
-                borderRadius: BorderRadius.circular(12),
+                color: iconColor,
+                borderRadius: BorderRadius.circular(6.5),
               ),
-              child: Icon(
-                icon,
-                color: CupertinoColors.white,
-                size: isWideScreen ? 26 : 24,
+              child: Center(
+                child: Icon(
+                  icon,
+                  color: CupertinoColors.white,
+                  size: 17,
+                ),
               ),
             ),
-            SizedBox(width: isWideScreen ? 18 : 16),
+            SizedBox(width: 12),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: isWideScreen ? 19 : 17,
-                      fontWeight: FontWeight.w500,
-                      color: CupertinoColors.white,
-                    ),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: isWideScreen ? 15 : 14,
-                      color: CupertinoColors.systemGrey,
-                    ),
-                  ),
-                ],
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w400,
+                  color: CupertinoColors.white,
+                  letterSpacing: -0.4,
+                ),
               ),
             ),
             trailing,
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildSettingsTileWithSwitch({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+    required bool isWideScreen,
+  }) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+      child: Row(
+        children: [
+          Container(
+            width: 29,
+            height: 29,
+            decoration: BoxDecoration(
+              color: iconColor,
+              borderRadius: BorderRadius.circular(6.5),
+            ),
+            child: Center(
+              child: Icon(
+                icon,
+                color: CupertinoColors.white,
+                size: 17,
+              ),
+            ),
+          ),
+          SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              title,
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w400,
+                color: CupertinoColors.white,
+                letterSpacing: -0.4,
+              ),
+            ),
+          ),
+          CupertinoSwitch(
+            value: value,
+            onChanged: onChanged,
+            activeColor: iconColor,
+          ),
+        ],
       ),
     );
   }
